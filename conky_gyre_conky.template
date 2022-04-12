@@ -1,0 +1,93 @@
+conky.config = {{
+    -- Alignment
+    xinerama_head = {placement[display]},
+    alignment = '{placement[alignment]}',
+    minimum_height = {placement[height]},
+    minimum_width = {placement[width]},
+    gap_x = {placement[gap_x]},
+    gap_y = {placement[gap_y]},
+
+    -- Update
+    update_interval = 1,
+    double_buffer = true,
+
+    -- Colors
+    default_color = '{colors[default]}',
+    color1 = '{colors[accent]}',
+    color2 = '{colors[secondary]}',
+
+    -- Default Font
+    use_xft = true,
+    font = '{fonts[mono][family]}:size={fonts[mono][small]}',
+
+    -- Style
+    draw_shades = false,
+    draw_graph_borders = {graphs[borders]},
+    default_graph_height = {graphs[height]},
+    default_graph_width = 120,
+    own_window = true,
+    own_window_class = 'Conky',
+    own_window_type = 'override',
+    own_window_transparent = false,
+    own_window_argb_visual = true,
+    own_window_argb_value = {colors[alpha]},
+    own_window_colour = '{colors[background]}',
+    top_name_width = 9,
+
+    -- Load lua scripts --
+    lua_load = '{system[path]}/conky_gyre.lua',
+    lua_draw_hook_pre = 'conky_main',
+}}
+
+
+conky.text = [[
+# --- System name, Distro, Kernel ---
+$alignr${{voffset 16}}${{offset -24}}${{font {fonts[fancy][family]}:pixelsize={fonts[fancy][large]}}}$color1$nodename
+$alignr${{voffset -60}}${{offset -24}}${{font {fonts[mono][family]}:pixelsize={fonts[mono][medium]}}}$color0$distribution
+$alignr${{offset -24}}${{font {fonts[mono][family]}:pixelsize={fonts[mono][medium]}}}$color0$kernel
+# --- CPU label + graph ---
+${{voffset 24}}${{goto 100}}${{font {fonts[icons][family]}:style={fonts[icons][style]}:pixelsize={fonts[icons][large]}}}$color1{cpu[icon]}\
+${{voffset -5}}${{font {fonts[mono][family]}:pixelsize={fonts[mono][large]}}} CPU \
+$alignr${{voffset -30}}${{offset -24}}$color2$cpugraph
+# --- CPU info ---
+$alignr${{voffset -40}}${{offset -24}}$font$color0${{execi 6000 cat /proc/cpuinfo | grep 'model name' | sed -e 's/model name.*: //'| uniq | awk '{{print $1, $2, $3, $4}}'}}
+${{voffset 4}}$alignr${{offset -24}}$font${{top name 1}}${{top cpu 1}}%
+$alignr${{offset -24}}$font${{top name 2}}${{top cpu 2}}%
+$alignr${{offset -24}}$font${{top name 3}}${{top cpu 3}}%
+$alignr${{offset -24}}${{offset -165}}${{voffset -58}}$cpu%
+$alignr${{offset -24}}${{offset -165}}${{freq 1}} MHz
+$alignr${{offset -24}}${{offset -165}}${{hwmon 0 temp 1}}°C
+# --- GPU label ---
+${{voffset 70}}${{goto 124}}${{font {fonts[mono][family]}:pixelsize={fonts[mono][large]}}}${{color1}}GPU\
+${{font {fonts[icons][family]}:style={fonts[icons][style]}:pixelsize={fonts[icons][large]}}}${{voffset 14}}${{offset 34}}
+# --- GPU info ---
+$alignr${{offset -170}}${{voffset -24}}$font$color0${{execi 6000 nvidia-smi --query-gpu=gpu_name --format=csv,noheader,nounits | sed "s/NVIDIA \(.*\)/\1/"}}
+${{goto 186}}${{exec nvidia-settings -query [gpu:{gpu[id]}]/GPUCoreTemp -t}}°C
+${{goto 186}}${{exec nvidia-settings -query [gpu:{gpu[id]}]/GPUUtilization -t | sed 's/graphics=\([0-9]\+\),.*/\1/'}}%
+${{goto 186}}${{exec nvidia-settings -query [gpu:{gpu[id]}]/UsedDedicatedGPUMemory -t}} MiB
+# ${{alignr}}${{offset -165}}${{voffset -60}}${{exec nvidia-smi --query-compute-apps="pid,name,used_memory" --format="csv,noheader"}}
+# --- MEM label + graph ---
+${{voffset 72}}${{goto 76}}${{font {fonts[icons][family]}:style={fonts[icons][style]}:pixelsize={fonts[icons][large]}}}$color1{mem[icon]}\
+${{voffset -5}}${{font {fonts[mono][family]}:pixelsize={fonts[mono][large]}}} Mem \
+$alignr${{voffset -30}}${{offset -24}}$color2$memgraph
+# --- Mem info ---
+${{voffset -28}}${{goto 96}}${{font}}${{color0}}SWAP $swapperc%
+${{goto 96}}${{font}}${{color0}}RAM  $memperc%
+$alignr${{voffset -40}}${{offset -24}}$font${{top_mem name 1}}${{top_mem mem 1}}%
+$alignr$font${{offset -24}}${{top_mem name 2}}${{top_mem mem 2}}%
+$alignr$font${{offset -24}}${{top_mem name 3}}${{top_mem mem 3}}%
+# --- Net label + graph? ---
+${{voffset 18}}${{goto 60}}$color2${{downspeedgraph {net[device]}}} \
+${{voffset 24}}${{font {fonts[mono][family]}:pixelsize={fonts[mono][large]}}}${{color1}}Net\
+${{voffset -54}}${{offset 28}}${{font {fonts[icons][family]}:style={fonts[icons][style]}:pixelsize={fonts[icons][large]}}}{net[icon]}
+# --- Net info ---
+$alignr${{offset -66}}$font$color0${{upspeedf {net[device]}}} KiB/s    Up
+$alignr${{offset -66}}$font$color0${{downspeedf {net[device]}}} KiB/s  Down
+${{voffset 4}}${{goto 74}}Local IP   ${{addrs {net[device]}}}
+${{goto 74}}Public IP  ${{execi 600 curl -s www.icanhazip.com}}
+# --- Datetime ---
+$alignc${{voffset 14}}${{offset -32}}${{font {fonts[fancy][family]}:pixelsize={fonts[fancy][large]}}}$color1${{time %d}}\
+${{voffset -14}}${{font {fonts[fancy][family]}:pixelsize={fonts[fancy][small]}}}$color0${{time %B %Y}}
+$alignc${{voffset -10}}${{font {fonts[fancy][family]}:pixelsize={fonts[fancy][large]}}}$color0${{time %A}}
+$alignc${{voffset -30}}${{offset -24}}${{font {fonts[fancy][family]}:pixelsize={fonts[fancy][large]}}}$color1${{time %H:%M}}
+]]

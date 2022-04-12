@@ -1,0 +1,82 @@
+system:
+  path: $HOME/.conky/conky-gyre
+
+placement:
+  display: 1
+  alignment: top_right
+  height: 1080
+  width: 345
+  gap_x: 5
+  gap_y: 0
+
+colors:
+  default: "#FEFEF8"
+  accent: "#ABAB80"
+  secondary: "#BA6453"
+  background: "#41262E"
+  alpha: 200  # Out of 255
+
+fonts:
+  mono:
+    family: NovaMono
+    small: 10
+    medium: 14
+    large: 30
+  fancy:
+    family: Tangerine
+    small: 42
+    large: 92
+  icons:
+    family: Font Awesome 6 Free
+    style: Solid
+    large: 30
+
+graphs:
+  height: 50
+  width: 120
+  borders: "false"  # Must be lowercase. Must be string.
+
+cpu:
+  icon: 
+  n_cpus: 16  # `lscpi | grep "^CPU(s):"`
+  crit_temp: 90  # Celcius
+  position:
+    x: 116
+    y: 194
+  radius:
+    small: 20
+    large: 98
+
+gpu:
+  icon: 
+  id: 0
+  mem: 8192  # `nvidia-smi | grep %`
+  crit_temp: 96  # Celcius
+  position:
+    x: 226
+    y: 398
+  radius:
+    small: 18
+    large: 74
+
+mem:
+  icon: 
+  position:
+    x: 90
+    y: 570
+  radius:
+    small: 20
+    large: 60
+
+net:
+  icon: 
+  device: enp8s0  # `cat /proc/net/route`
+  max:
+    up: 25
+    down: 300
+  position:
+    x: 288
+    y: 724
+  radius:
+    small: 20
+    large: 54

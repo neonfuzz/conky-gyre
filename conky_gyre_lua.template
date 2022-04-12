@@ -1,0 +1,319 @@
+require("cairo")
+
+-------------------
+-- # Variables # --
+-------------------
+
+local n_cpus = {cpu[n_cpus]}
+local cpu_crit_temp = {cpu[crit_temp]}
+local gpu_mem = {gpu[mem]}
+local gpu_crit_temp = {gpu[crit_temp]}
+local net_device = "{net[device]}"
+local net_down_max = {net[max][down]}
+local net_up_max = {net[max][up]}
+
+---------------
+-- # Style # --
+---------------
+
+local color1 = "{colors[accent]}"
+local color2 = "{colors[secondary]}"
+
+--------------------------
+-- # General Settings # --
+--------------------------
+
+-- CPU settings
+local cpu_sets = {{
+	bg_color = color1,
+	bg_alpha_start = 0.7,
+	bg_alpha_step = -0.1,
+	fg_color = color2,
+	fg_alpha_start = 0.7,
+	fg_alpha_step = 0.,
+	x = {cpu[position][x]},
+	y = {cpu[position][y]},
+	big_r = {cpu[radius][large]},
+	lil_r = {cpu[radius][small]},
+	r_steps = n_cpus + 1,
+	start_angle = 180,
+	end_angle = 420,
+	angle_step = 0,
+	clockwise = true,
+}}
+cpu_sets.thickness = (cpu_sets.big_r - cpu_sets.lil_r) / cpu_sets.r_steps
+
+-- GPU settings
+local gpu_sets = {{
+	bg_color = color1,
+	bg_alpha_start = 0.3,
+	bg_alpha_step = 0.2,
+	fg_color = color2,
+	fg_alpha_start = 0.7,
+	fg_alpha_step = 0,
+	x = {gpu[position][x]},
+	y = {gpu[position][y]},
+	big_r = {gpu[radius][large]},
+	lil_r = {gpu[radius][small]},
+	r_steps = 3,
+	start_angle = 180,
+	end_angle = -60,
+	angle_step = 0,
+	clockwise = false,
+}}
+gpu_sets.thickness = (gpu_sets.big_r - gpu_sets.lil_r) / gpu_sets.r_steps
+
+-- Memory settings
+local mem_sets = {{
+	bg_color = color1,
+	bg_alpha_start = 0.5,
+	bg_alpha_step = -0.2,
+	fg_color = color2,
+	fg_alpha_start = 0.7,
+	fg_alpha_step = 0,
+	x = {mem[position][x]},
+	y = {mem[position][y]},
+	big_r = {mem[radius][large]},
+	lil_r = {mem[radius][small]},
+	r_steps = 2,
+	start_angle = 180,
+	end_angle = 420,
+	angle_step = 0,
+	clockwise = true,
+}}
+mem_sets.thickness = (mem_sets.big_r - mem_sets.lil_r) / mem_sets.r_steps
+
+-- Net settings
+local net_sets = {{
+	bg_color = color1,
+	bg_alpha_start = 0.4,
+	bg_alpha_step = 0.3,
+	fg_color = color2,
+	fg_alpha_start = 0.7,
+	fg_alpha_step = 0,
+	x = {net[position][x]},
+	y = {net[position][y]},
+	big_r = {net[radius][large]},
+	lil_r = {net[radius][small]},
+	r_steps = 2,
+	start_angle = 180,
+	end_angle = -60,
+	angle_step = 0,
+	clockwise = false,
+}}
+net_sets.thickness = (net_sets.big_r - net_sets.lil_r) / net_sets.r_steps
+
+-------------------------
+-- # Mathy Functions # --
+-------------------------
+
+local function to_radians(n)
+	-- Start 0° at top of circle; rotate clockwise
+	return n * (2 * math.pi / 360) - math.pi / 2
+end
+
+local function hex_to_rgba(hex, alpha)
+	-- Convert from HEX to RGBA (values from 0-1)
+	hex = hex:gsub("#", "")
+	return tonumber("0x" .. hex:sub(1, 2)) / 255,
+		tonumber("0x" .. hex:sub(3, 4)) / 255,
+		tonumber("0x" .. hex:sub(5, 6)) / 255,
+		alpha
+end
+
+---------------------------
+-- # Systemy Functions # --
+---------------------------
+
+local function n_from_sys(cmd)
+	local handle = io.popen(cmd)
+	local result = handle.read(handle)
+	handle:close()
+	return tonumber(result) or nil
+end
+
+-------------------------
+-- # Drawy Functions # --
+-------------------------
+
+local function draw_ring(cr, sets)
+	-- Draw a single ring onto 'cr' using 'sets' settings
+	-- Get value from conky and convert it to percent
+	local percent = 0.0
+	if sets.source == "conky" then
+		local str = string.format("${{%s}}", sets.cmd)
+		local num = tonumber(conky_parse(str)) or 0
+		percent = num / sets.max
+	elseif sets.source == "shell" then
+		local num = n_from_sys(sets.cmd)
+		percent = num / sets.max
+	end
+    percent = math.min(1.0, percent)
+
+	-- Calculate radian angles
+	local angle_0 = to_radians(sets.start_angle)
+	local angle_f = to_radians(sets.end_angle)
+	local angle_ind = angle_0 + percent * (angle_f - angle_0)
+
+	-- Draw background ring
+	if sets.clockwise then
+		cairo_arc(cr, sets.x, sets.y, sets.radius, angle_0, angle_f)
+	else
+		cairo_arc_negative(cr, sets.x, sets.y, sets.radius, angle_0, angle_f)
+	end
+	cairo_set_source_rgba(cr, hex_to_rgba(sets.bg_color, sets.bg_alpha))
+	cairo_set_line_width(cr, sets.thickness)
+	cairo_stroke(cr)
+
+	-- Draw indicator ring
+	if sets.clockwise then
+		cairo_arc(cr, sets.x, sets.y, sets.radius, angle_0, angle_ind)
+	else
+		cairo_arc_negative(cr, sets.x, sets.y, sets.radius, angle_0, angle_ind)
+	end
+	cairo_set_source_rgba(cr, hex_to_rgba(sets.fg_color, sets.fg_alpha))
+	cairo_set_line_width(cr, sets.thickness)
+	cairo_stroke(cr)
+end
+
+--------------------------------------------
+-- # Individual Settings for each Wheel # --
+--------------------------------------------
+
+local rings_settings_table = {{}}
+
+-- CPU rings
+for i = 0, n_cpus do
+	rings_settings_table[#rings_settings_table + 1] = {{
+		source = "conky",
+		cmd = (i == 0 and "hwmon 0 temp 1" or "cpu cpu" .. i),
+		max = (i == 0 and cpu_crit_temp or 100),
+		bg_color = cpu_sets.bg_color,
+		bg_alpha = cpu_sets.bg_alpha_start + i * cpu_sets.bg_alpha_step,
+		fg_color = cpu_sets.fg_color,
+		fg_alpha = cpu_sets.fg_alpha_start + i * cpu_sets.fg_alpha_step,
+		x = cpu_sets.x,
+		y = cpu_sets.y,
+		radius = cpu_sets.big_r - i * cpu_sets.thickness,
+		thickness = cpu_sets.thickness,
+		start_angle = cpu_sets.start_angle,
+		end_angle = cpu_sets.end_angle - i * cpu_sets.angle_step,
+		clockwise = cpu_sets.clockwise,
+	}}
+end
+
+-- GPU rings
+local function gpu_cmd(i)
+	if i == 0 then -- Memory
+		return "nvidia-settings -query [gpu:{gpu[id]}]/UsedDedicatedGPUMemory -t"
+	elseif i == 1 then -- Utilization
+		return "nvidia-settings -query [gpu:{gpu[id]}]/GPUUtilization -t | sed 's/graphics=\\([0-9]\\+\\),.*/\\1/'"
+	end
+	-- Temperature
+	return "nvidia-settings -query [gpu:{gpu[id]}]/GPUCoreTemp -t"
+end
+
+local function gpu_max(i)
+	if i == 0 then -- Memory
+		return gpu_mem
+	elseif i == 1 then -- Utilization
+		return 100
+	end
+	-- Temperature
+	return gpu_crit_temp
+end
+
+for i = 0, 2 do
+	rings_settings_table[#rings_settings_table + 1] = {{
+		source = "shell",
+		cmd = gpu_cmd(i),
+		max = gpu_max(i),
+		bg_color = gpu_sets.bg_color,
+		bg_alpha = gpu_sets.bg_alpha_start + i * gpu_sets.bg_alpha_step,
+		fg_color = gpu_sets.fg_color,
+		fg_alpha = gpu_sets.fg_alpha_start + i * gpu_sets.fg_alpha_step,
+		x = gpu_sets.x,
+		y = gpu_sets.y,
+		radius = gpu_sets.big_r - i * gpu_sets.thickness,
+		thickness = gpu_sets.thickness,
+		start_angle = gpu_sets.start_angle,
+		end_angle = gpu_sets.end_angle - i * gpu_sets.angle_step,
+		clockwise = gpu_sets.clockwise,
+	}}
+end
+
+-- Mem rings
+for i = 0, 1 do
+	rings_settings_table[#rings_settings_table + 1] = {{
+		source = "conky",
+		cmd = (i == 0 and "memperc" or "swapperc"),
+		max = 100,
+		bg_color = mem_sets.bg_color,
+		bg_alpha = mem_sets.bg_alpha_start + i * mem_sets.bg_alpha_step,
+		fg_color = mem_sets.fg_color,
+		fg_alpha = mem_sets.fg_alpha_start + i * mem_sets.fg_alpha_step,
+		x = mem_sets.x,
+		y = mem_sets.y,
+		radius = mem_sets.big_r - i * mem_sets.thickness,
+		thickness = mem_sets.thickness,
+		start_angle = mem_sets.start_angle,
+		end_angle = mem_sets.end_angle - i * mem_sets.angle_step,
+		clockwise = mem_sets.clockwise,
+	}}
+end
+
+-- Net rings
+for i = 0, 1 do
+	rings_settings_table[#rings_settings_table + 1] = {{
+		source = "conky",
+		cmd = (i == 0 and "downspeedf " or "upspeedf ") .. net_device,
+		max = (i == 0 and net_down_max or net_up_max),
+		bg_color = net_sets.bg_color,
+		bg_alpha = net_sets.bg_alpha_start + i * net_sets.bg_alpha_step,
+		fg_color = net_sets.fg_color,
+		fg_alpha = net_sets.fg_alpha_start + i * net_sets.fg_alpha_step,
+		x = net_sets.x,
+		y = net_sets.y,
+		radius = net_sets.big_r - i * net_sets.thickness,
+		thickness = net_sets.thickness,
+		start_angle = net_sets.start_angle,
+		end_angle = net_sets.end_angle - i * net_sets.angle_step,
+		clockwise = net_sets.clockwise,
+	}}
+end
+
+----------------------
+-- # Main Program # --
+----------------------
+
+function conky_main()
+	-- If we don't have conky, then don't bother
+	if conky_window == nil then
+		return
+	end
+
+	-- Create Cairo surface on which to draw
+	local cs = cairo_xlib_surface_create(
+		conky_window.display,
+		conky_window.drawable,
+		conky_window.visual,
+		conky_window.width,
+		conky_window.height
+	)
+	local cr = cairo_create(cs)
+
+	-- Only update if at least 5 conky updates
+	-- (To prevent issues with CPU measurement)
+	local updates = tonumber(conky_parse("${{updates}}"))
+	if updates > 5 then
+		-- For each wheel setting, draw a ring
+		for _, j in pairs(rings_settings_table) do
+			draw_ring(cr, j)
+		end
+	end
+
+	-- Cleanup
+	cairo_destroy(cr)
+	cairo_surface_destroy(cs)
+	cr = nil
+end
